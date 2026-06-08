@@ -248,3 +248,54 @@ scripts/stop_demo.sh
 
 Objectif : avoir un cleanup fiable pour la demo portfolio, sans dependance au
 helper `ui_manager` du workshop.
+
+## Lesson - NAT tool registration
+
+La lecon introduit le passage du workflow simple `chat_completion` a un agent
+ReAct outille.
+
+Objectif conceptuel :
+
+```text
+Python function -> NAT tool -> ReAct agent -> tool call -> observation -> final answer
+```
+
+Flow de registration d'un tool NAT :
+
+```text
+1. Input Schema -> 2. Config Class -> 3. Wrapper Function -> 4. YAML Config
+```
+
+### Step 1 - Input Schema
+
+Le schema d'entree definit les parametres exposables au LLM quand il appelle le
+tool. Exemple du workshop :
+
+```python
+from pydantic import BaseModel, Field
+
+
+class CalculateStatsInput(BaseModel):
+    country: str = Field(
+        default="",
+        description=(
+            "Country name to filter by (e.g., 'United States', 'France'). "
+            "Leave empty for global statistics."
+        ),
+    )
+```
+
+Points importants :
+
+- utiliser Pydantic `BaseModel`
+- documenter chaque champ avec `Field(description=...)`
+- la description sert au LLM pour savoir quand et comment appeler le tool
+- `default=""` permet de representer le cas global sans pays filtre
+
+Decision probable pour notre repo :
+
+- creer plus tard des schemas dans `src/training_nvidia_nat/tools/`
+- tester les fonctions metier independamment du LLM
+- garder `config.yml` comme baseline simple
+- ajouter un workflow separe pour ReAct/tools, par exemple
+  `configs/react_climate.yml`
