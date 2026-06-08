@@ -138,9 +138,12 @@ NEXT_INTERNAL_URL=http://127.0.0.1:3099
 
 ## Next Work
 
-1. Add GitHub Actions for NAT validation, tests, lint, and shell syntax.
-2. Create `TECHNICAL_SHEET.md` as a polished portfolio-facing document.
-3. Add architecture diagram and screenshots/video.
-4. Add deployment docs for Render/Railway/Fly.
-5. Connect the final demo page from `cv-portfolio`.
+1. Add architecture diagram and screenshots/video.
+2. Add deployment docs for Render/Railway/Fly.
+3. Connect the final demo page from `cv-portfolio`.
+4. Create GitHub remote and push `main`.
 
+Completed after initial handoff:
+
+- GitHub Actions CI added in `.github/workflows/ci.yml`.
+- Portfolio-facing technical sheet added in `TECHNICAL_SHEET.md`.

@@ -1,6 +1,13 @@
 # training_nvidia_nat
 
-Projet Python local avec environnement virtuel dedie.
+Integration demo NVIDIA NeMo Agent Toolkit (NAT) + NVIDIA NIM + UI officielle
+NVIDIA.
+
+Ce repo montre comment assembler un workflow agentique NVIDIA de bout en bout :
+
+```text
+NVIDIA NIM -> NAT workflow -> NAT API backend -> official NVIDIA UI
+```
 
 ## Demarrage
 
@@ -116,4 +123,5 @@ Le contexte technique complet pour reprendre le projet est dans :
 ```bash
 HANDOFF.md
 TECHNICAL_NOTES.md
+TECHNICAL_SHEET.md
 ```
