@@ -299,3 +299,49 @@ Decision probable pour notre repo :
 - garder `config.yml` comme baseline simple
 - ajouter un workflow separe pour ReAct/tools, par exemple
   `configs/react_climate.yml`
+
+### Step 2 - Config Class
+
+La classe de config enregistre le tool dans NAT avec un nom stable. Exemple du
+workshop :
+
+```python
+from nat.data_models.function import FunctionBaseConfig
+
+
+class CalculateStatisticsConfig(
+    FunctionBaseConfig,
+    name="simple_calculate_statistics",
+):
+    """Configuration for calculating climate statistics."""
+
+    pass
+```
+
+Points importants :
+
+- heriter de `FunctionBaseConfig`
+- passer `name="simple_calculate_statistics"` dans la declaration de classe
+- ce nom devient l'identifiant NAT du tool
+- le YAML pourra ensuite referencer ce tool avec :
+
+```yaml
+functions:
+  calculate_statistics:
+    _type: simple_calculate_statistics
+```
+
+Interpretation integration :
+
+- la classe config ne contient pas encore la logique metier
+- elle sert de contrat entre le code Python et la configuration YAML
+- le nom doit etre stable, explicite et oriente capacite
+
+Decision probable pour notre repo :
+
+- preferer des noms NAT explicites, par exemple :
+  - `climate_calculate_statistics`
+  - `climate_temperature_anomaly`
+  - `climate_country_summary`
+- separer le nom YAML local (`calculate_statistics`) du type NAT
+  (`climate_calculate_statistics`)
