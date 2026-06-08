@@ -66,6 +66,10 @@ e5d91c68b913287cbcc4d4689a956a7b3b36333e
 - On this machine, port `3000` was already busy, so UI uses `3001`.
 - The UI public proxy accepts `/api/chat`; direct `/api/v1/chat/completions` is
   blocked by the UI allowlist.
+- The workshop cleanup calls `ui_manager.stop()`, `nat_process.terminate()`,
+  and `nat_process.wait()`. Local equivalent is currently manual `Ctrl+C` in
+  backend/UI terminals. Add `scripts/start_demo.sh` and `scripts/stop_demo.sh`
+  later for PID-based startup and cleanup.
 
 ## SSL Note
 
@@ -139,9 +143,9 @@ NEXT_INTERNAL_URL=http://127.0.0.1:3099
 ## Next Work
 
 1. Add architecture diagram and screenshots/video.
-2. Add deployment docs for Render/Railway/Fly.
-3. Connect the final demo page from `cv-portfolio`.
-4. Create GitHub remote and push `main`.
+2. Add `scripts/start_demo.sh` and `scripts/stop_demo.sh` for reliable cleanup.
+3. Add deployment docs for Render/Railway/Fly.
+4. Connect the final demo page from `cv-portfolio`.
 
 Completed after initial handoff:
 

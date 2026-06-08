@@ -212,3 +212,39 @@ autre agent de reprendre le projet. Il contient :
 
 L'UI officielle NVIDIA reste volontairement hors Git via `external/`.
 Elle est reconstruite localement avec `scripts/bootstrap_ui.sh`.
+
+## Cleanup workshop NVIDIA
+
+Dans le workshop, la fin de demo utilise :
+
+```python
+ui_manager.stop()
+nat_process.terminate()
+nat_process.wait()
+print("Server stopped")
+```
+
+Interpretation :
+
+- `ui_manager.stop()` arrete l'UI lancee par le helper de formation.
+- `nat_process.terminate()` demande l'arret du serveur NAT lance en sous-processus.
+- `nat_process.wait()` attend que le processus soit effectivement termine.
+
+Equivalent local actuel :
+
+- arreter `scripts/serve_backend.sh` avec `Ctrl+C`
+- arreter `scripts/serve_ui.sh` avec `Ctrl+C`
+
+Decision a integrer plus tard :
+
+- ajouter `scripts/start_demo.sh` et `scripts/stop_demo.sh`
+- stocker les PID dans `.tmp/`
+- permettre un cycle demo propre :
+
+```bash
+scripts/start_demo.sh
+scripts/stop_demo.sh
+```
+
+Objectif : avoir un cleanup fiable pour la demo portfolio, sans dependance au
+helper `ui_manager` du workshop.
