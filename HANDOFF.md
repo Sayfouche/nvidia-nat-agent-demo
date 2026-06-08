@@ -151,3 +151,4 @@ Completed after initial handoff:
 
 - GitHub Actions CI added in `.github/workflows/ci.yml`.
 - Portfolio-facing technical sheet added in `TECHNICAL_SHEET.md`.
+- NAT ReAct tools lesson consolidated in `docs/nat-react-tools-lesson.md`.

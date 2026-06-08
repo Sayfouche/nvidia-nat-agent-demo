@@ -345,3 +345,512 @@ Decision probable pour notre repo :
   - `climate_country_summary`
 - separer le nom YAML local (`calculate_statistics`) du type NAT
   (`climate_calculate_statistics`)
+
+### Step 3 - Wrapper Function / FunctionInfo
+
+Le wrapper connecte la config NAT, les donnees metier et la fonction callable
+par l'agent. Exemple du workshop :
+
+```python
+from nat.builder.builder import Builder
+from nat.builder.function_info import FunctionInfo
+from nat.cli.register_workflow import register_function
+
+
+@register_function(config_type=CalculateStatisticsConfig)
+async def calculate_statistics_tool(
+    config: CalculateStatisticsConfig,
+    builder: Builder,
+):
+    """Register tool for calculating climate statistics."""
+    df = load_climate_data(DATA_PATH)
+
+    async def _wrapper(country: str = "") -> str:
+        country_param = None if country == "" else country
+        result = calculate_statistics(df, country_param)
+        return result
+
+    yield FunctionInfo.from_fn(
+        _wrapper,
+        input_schema=CalculateStatsInput,
+        description=(
+            "Calculate temperature statistics globally or for a specific country. "
+            "Returns JSON with: mean_temperature (°C), min_temperature (°C), "
+            "max_temperature (°C), std_deviation (°C), num_records (count), "
+            "trend_per_decade (°C/decade), years_analyzed (e.g. '1950-2025'), "
+            "and country (if specified)."
+        ),
+    )
+```
+
+Points importants :
+
+- `@register_function(config_type=...)` enregistre le tool aupres de NAT.
+- la fonction de registration recoit `config` et `builder`.
+- les donnees peuvent etre chargees une fois au moment de la registration
+  (`df = load_climate_data(DATA_PATH)`), puis reutilisees par le wrapper.
+- `_wrapper` est async et expose une signature simple au LLM.
+- `FunctionInfo.from_fn(...)` relie :
+  - la fonction callable
+  - le schema d'input Pydantic
+  - la description semantique du tool
+
+Point critique :
+
+- la description du tool est un vrai contrat pour l'agent ReAct.
+- elle doit indiquer clairement quand utiliser le tool et ce qu'il retourne.
+- si la description est vague, l'agent risque de ne pas appeler le tool ou de
+  mal interpreter le resultat.
+
+Decision probable pour notre repo :
+
+- separer la logique metier pure de la registration NAT :
+  - fonctions pures testables : `calculate_statistics(...)`
+  - registration NAT : `calculate_statistics_tool(...)`
+- eviter de charger un gros dataset a chaque appel tool
+- tester la fonction pure sans LLM ni NAT
+- tester le wrapper avec donnees minimales si possible
+
+### Complete minimal registration file from workshop
+
+Le workshop assemble les trois premiers morceaux dans un fichier minimal :
+
+```python
+"""This file shows the minimal pattern for registering a Python function as a NAT tool."""
+
+import os
+import pandas as pd
+from pydantic import BaseModel, Field
+from nat.builder.builder import Builder
+from nat.builder.function_info import FunctionInfo
+from nat.cli.register_workflow import register_function
+from nat.data_models.function import FunctionBaseConfig
+
+from .simple_function import calculate_statistics
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+DATA_PATH = os.path.join(
+    current_dir,
+    "..",
+    "..",
+    "..",
+    "..",
+    "resources",
+    "climate_data",
+    "temperature_annual.csv",
+)
+
+
+def load_climate_data(file_path: str = "temperature_annual.csv") -> pd.DataFrame:
+    df = pd.read_csv(file_path)
+    return df
+
+
+class CalculateStatsInput(BaseModel):
+    country: str = Field(
+        default="",
+        description=(
+            "Country name to filter by (e.g., 'United States', 'France'). "
+            "Leave empty for global statistics."
+        ),
+    )
+
+
+class CalculateStatisticsConfig(
+    FunctionBaseConfig,
+    name="simple_calculate_statistics",
+):
+    """Configuration for calculating climate statistics."""
+
+    pass
+
+
+@register_function(config_type=CalculateStatisticsConfig)
+async def calculate_statistics_tool(
+    config: CalculateStatisticsConfig,
+    builder: Builder,
+):
+    """Register tool for calculating climate statistics."""
+    df = load_climate_data(DATA_PATH)
+
+    async def _wrapper(country: str = "") -> str:
+        country_param = None if country == "" else country
+        result = calculate_statistics(df, country_param)
+        return result
+
+    yield FunctionInfo.from_fn(
+        _wrapper,
+        input_schema=CalculateStatsInput,
+        description=(
+            "Calculate temperature statistics globally or for a specific country. "
+            "Returns JSON with: mean_temperature (°C), min_temperature (°C), "
+            "max_temperature (°C), std_deviation (°C), num_records (count), "
+            "trend_per_decade (°C/decade), years_analyzed (e.g. '1950-2025'), "
+            "and country (if specified)."
+        ),
+    )
+```
+
+Integration observations :
+
+- Ce fichier est pedagogique et minimal, pas encore une structure projet finale.
+- `DATA_PATH` est construit avec plusieurs `..`; pour notre repo, preferer un
+  helper de chemin centralise ou `importlib.resources`.
+- `pandas` devient une dependance directe des tools si on conserve ce pattern.
+- `load_climate_data(...)` doit etre testee avec un CSV minimal.
+- `calculate_statistics(...)` doit rester dans un module separe pour conserver
+  une fonction pure, testable sans NAT.
+- Le wrapper NAT doit retourner une string stable, idealement JSON.
+- La description `FunctionInfo` doit etre traitee comme une interface agent :
+  elle guide le choix du tool par le ReAct agent.
+
+Structure cible probable pour adaptation :
+
+```text
+src/training_nvidia_nat/
+  climate_data.py
+  climate_stats.py
+  tools/
+    climate_statistics.py
+tests/
+  test_climate_stats.py
+  test_climate_tool_registration.py
+configs/
+  react_climate.yml
+```
+
+### Python packaging for NAT
+
+La lecon montre que NAT decouvre les tools via les entry points du package
+Python.
+
+Exemple workshop :
+
+```toml
+[project]
+name = "climate_analyzer"
+
+[project.entry-points.nat]
+"climate_analyzer/calculate_statistics" = "climate_analyzer.register"
+```
+
+Installation editable :
+
+```bash
+uv pip install -e .
+```
+
+Interpretation :
+
+- le decorateur `@register_function(...)` ne suffit pas si le module n'est
+  jamais importe par NAT
+- l'entry point indique a NAT quel module charger pour enregistrer les tools
+- le package doit etre installe en editable pour que NAT voie les changements
+  locaux pendant le dev
+
+Impact pour notre repo :
+
+- `pyproject.toml` devra ajouter une section `[project.entry-points.nat]`
+- le module cible devra importer/definir les fonctions `@register_function`
+- notre package est deja installable via `setuptools` et `src/`
+- le workflow ReAct/tools devra etre valide apres `pip install -e .`
+
+Decision probable :
+
+```toml
+[project.entry-points.nat]
+"training_nvidia_nat/climate_statistics" = "training_nvidia_nat.tools.climate_statistics"
+```
+
+Point a verifier quand on implemente :
+
+- le format exact attendu par NAT pour la cle d'entry point
+- si une fonction `register` explicite est requise ou si l'import du module
+  contenant `@register_function` suffit
+- compatibilite avec `pip install -e .` deja utilise dans ce projet
+
+### Step 4 - YAML wiring
+
+La configuration YAML relie les tools enregistres au workflow agent. Exemple du
+workshop :
+
+```yaml
+functions:
+  calculate_statistics:
+    _type: climate_analyzer/calculate_statistics
+    description: "Temperature statistics tool"
+
+  filter_by_country:
+    _type: climate_analyzer/filter_by_country
+
+  create_visualization:
+    _type: climate_analyzer/create_visualization
+
+workflow:
+  _type: react_agent
+  llm_name: climate_llm
+  tool_names:
+    - calculate_statistics
+    - filter_by_country
+    - create_visualization
+```
+
+Interpretation :
+
+- `functions.<local_name>` declare une instance de tool utilisable par le
+  workflow.
+- `_type` pointe vers le type NAT enregistre via entry point/config class.
+- `workflow._type: react_agent` remplace le simple `chat_completion`.
+- `tool_names` controle explicitement les tools visibles par l'agent.
+
+Impact pour notre repo :
+
+- garder `config.yml` comme baseline simple `chat_completion`
+- ajouter un workflow separe, par exemple `configs/react_climate.yml`
+- declarer les tools dans `functions`
+- declarer le ReAct agent dans `workflow`
+- verifier avec :
+
+```bash
+nat validate --config_file configs/react_climate.yml
+```
+
+Point critique :
+
+- Les noms dans `tool_names` doivent correspondre aux cles sous `functions`.
+- Les `_type` doivent correspondre aux entry points NAT exposes par le package.
+- Sans `pip install -e .`, NAT risque de ne pas decouvrir les tools locaux.
+
+### Dependency injection and beyond
+
+La lecon montre que les functions enregistrees peuvent etre reutilisees au-dela
+du simple agent :
+
+```yaml
+workflow:              # Tools for agents
+  tool_names:
+    - calculate_statistics
+
+telemetry:             # Automatic tracing
+  tracing:
+    phoenix:
+      _type: phoenix
+
+eval:                  # Systematic evaluation
+  evaluators:
+    - response_quality
+```
+
+Interpretation :
+
+- Les functions NAT deviennent des composants reutilisables dans l'ecosysteme.
+- Le workflow agent peut les utiliser comme tools.
+- La telemetry peut tracer les appels et les etapes intermediaires.
+- L'evaluation peut mesurer la qualite systematiquement.
+
+Impact pour notre objectif GitHub :
+
+- c'est un argument fort d'integration enterprise : agent + observability +
+  evaluation dans une meme configuration.
+- notre demo initiale peut rester focalisee sur tools/ReAct.
+- une phase suivante peut ajouter Phoenix tracing ou un eval minimal pour montrer
+  une integration plus complete.
+
+Decision probable :
+
+- phase 1 : baseline `chat_completion`
+- phase 2 : ReAct agent + climate tools
+- phase 3 : tracing/eval, si le workshop fournit un pattern stable
+
+### NAT workflow scaffolding
+
+La lecon montre que NAT peut generer une structure de workflow :
+
+```bash
+nat workflow create climate_assistant
+```
+
+Structure generee par le workshop :
+
+```text
+pyproject.toml
+README.md
+src/
+  climate_assistant/
+    __init__.py
+    configs/
+      config.yml
+    register.py
+```
+
+Interpretation :
+
+- `nat workflow create` genere le boilerplate standard d'un package NAT.
+- `register.py` devient le point naturel pour les `@register_function`.
+- `configs/config.yml` contient la config workflow/package.
+- `pyproject.toml` declare les entry points NAT.
+
+Impact pour notre repo :
+
+- ne pas executer le scaffold dans le repo existant sans plan, car nous avons
+  deja une structure `src/training_nvidia_nat`.
+- utiliser ce scaffold comme reference pour aligner notre structure :
+
+```text
+src/training_nvidia_nat/
+  __init__.py
+  register.py
+  configs/
+    react_climate.yml
+```
+
+ou garder `configs/` a la racine si c'est plus lisible pour le repo demo.
+
+Decision probable :
+
+- eviter de regenerer le projet avec `nat workflow create`
+- adapter notre structure existante au pattern NAT
+- ajouter un `register.py` dedie quand on implemente les tools
+
+### Climate statistics and visualization outputs
+
+Le workshop montre une fonction metier pure `calculate_statistics(df)` avec une
+sortie JSON/string de statistiques globales.
+
+Exemple de sortie :
+
+```json
+{
+  "mean_temperature": 17.91,
+  "min_temperature": -15.71,
+  "max_temperature": 29.23,
+  "std_deviation": 7.83,
+  "num_records": 1210,
+  "trend_per_decade": 0.241,
+  "years_analyzed": "1950-2025"
+}
+```
+
+Champs attendus :
+
+- `mean_temperature`
+- `min_temperature`
+- `max_temperature`
+- `std_deviation`
+- `num_records`
+- `trend_per_decade`
+- `years_analyzed`
+- `country` si un filtre pays est applique
+
+Tests futurs probables :
+
+- `test_calculate_statistics_global_returns_expected_fields`
+- `test_calculate_statistics_country_filter_adds_country`
+- `test_calculate_statistics_returns_json_string`
+
+Le workshop montre aussi une fonction de visualisation :
+
+```python
+create_visualization(
+    df,
+    plot_type="annual_trend",
+    save_path="global_trend.png",
+)
+```
+
+Sortie observee :
+
+```text
+Created annual_trend plot and saved to global_trend.png
+```
+
+Types de visualisation vus :
+
+- `annual_trend`
+- `country_comparison`
+- `monthly_pattern`
+
+Points d'integration :
+
+- le tool de visualisation produit un artefact fichier, pas seulement du texte
+- `save_path` doit etre controle pour eviter les ecritures arbitraires
+- le retour doit rester une string exploitable par l'agent
+- pour la demo portfolio, ce tool peut produire une preuve visuelle forte
+
+Tests futurs probables :
+
+- `test_create_visualization_writes_file`
+- `test_create_visualization_rejects_unknown_plot_type`
+- `test_create_visualization_returns_description`
+
+### Multi-tool ReAct workflow
+
+Le workshop etend le workflow ReAct avec plusieurs tools :
+
+```yaml
+functions:
+  list_countries:
+    _type: climate_analyzer/list_countries
+    description: "List all available countries in the dataset"
+
+  calculate_statistics:
+    _type: climate_analyzer/calculate_statistics
+    description: "Calculate temperature statistics globally or for a specific country"
+
+  filter_by_country:
+    _type: climate_analyzer/filter_by_country
+    description: "Get information about climate data for a specific country"
+
+  find_extreme_years:
+    _type: climate_analyzer/find_extreme_years
+    description: "Find the warmest or coldest years in the dataset"
+
+  create_visualization:
+    _type: climate_analyzer/create_visualization
+    description: "Create visualizations including automatic top 5 countries by warming"
+
+workflow:
+  _type: react_agent
+  tool_names:
+    - list_countries
+    - calculate_statistics
+    - filter_by_country
+    - find_extreme_years
+    - create_visualization
+  llm_name: climate_llm
+  verbose: true
+  max_iterations: 5
+  parse_agent_response_max_retries: 2
+```
+
+Interpretation :
+
+- `functions` declare les tools disponibles dans la config NAT.
+- `tool_names` choisit explicitement les tools exposes au ReAct agent.
+- `verbose: true` rend les etapes ReAct observables pendant le dev.
+- `max_iterations: 5` limite les cycles thought/action/observation.
+- `parse_agent_response_max_retries: 2` rend l'agent plus robuste si sa sortie
+  n'est pas parsable.
+
+Point critique observe avec le tool unique :
+
+- l'agent peut passer `None` comme input quand il veut des statistiques globales.
+- le wrapper ou la fonction metier doit traiter `None`, `""` et `"None"` comme
+  absence de filtre pays.
+
+Decision probable pour notre repo :
+
+- demarrer avec un seul tool propre et teste (`calculate_statistics`)
+- ajouter ensuite les tools par capacite :
+  - `list_countries`
+  - `filter_by_country`
+  - `find_extreme_years`
+  - `create_visualization`
+- chaque tool doit avoir :
+  - fonction pure testee
+  - schema Pydantic
+  - config class NAT
+  - wrapper NAT
+  - reference YAML
+- ajouter des tests pour les inputs ambigus generes par le LLM (`None`, vide,
+  pays inexistant)

@@ -43,6 +43,14 @@ The current workflow is a climate science assistant:
 - Model: `meta/llama-3.1-70b-instruct`
 - Backend URL: `https://integrate.api.nvidia.com/v1`
 
+Planned next workflow:
+
+- NAT workflow type: `react_agent`
+- Tools: climate statistics, country filtering, extreme-year lookup, and
+  visualization
+- Config file target: `configs/react_climate.yml`
+- Lesson notes: `docs/nat-react-tools-lesson.md`
+
 Required local environment:
 
 ```bash
@@ -104,6 +112,10 @@ http://localhost:3001
 - Direct `/api/v1/chat/completions` through the UI proxy is blocked by the UI
   allowlist; direct OpenAI-compatible calls should target the NAT backend.
 - `nvidia-nat[app]` provides `nat_app` performance primitives, not the chat UI.
+- Custom NAT tools require Python package entry points so NAT can discover local
+  registrations.
+- ReAct tools should be implemented as pure tested functions plus thin NAT
+  wrappers.
 
 ## Quality Gates
 
@@ -163,4 +175,3 @@ Same agentic integration goal, different ecosystems:
 CrewAI for a custom CV audit workflow, NVIDIA NAT/NIM for an enterprise AI
 integration stack.
 ```
-
