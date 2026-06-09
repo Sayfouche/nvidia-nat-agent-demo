@@ -64,6 +64,70 @@ scripts/run_climate_workflow.sh --input "What is the greenhouse effect?"
 Le script active le `.venv`, charge `.env`, puis configure `SSL_CERT_FILE` avec
 le bundle CA fourni par `certifi`.
 
+## Workflow ReAct avec tools
+
+Le workflow agentique est dans `configs/react_climate.yml`. Il expose cinq
+tools Python locaux a NAT :
+
+```text
+list_countries
+calculate_statistics
+filter_by_country
+find_extreme_years
+create_visualization
+```
+
+Les tools sont declares dans `src/training_nvidia_nat/register.py` et les
+fonctions testables dans `src/training_nvidia_nat/climate.py`.
+
+Apres une modification du packaging NAT, reinstalle le package local :
+
+```bash
+python -m pip install -e . --no-build-isolation
+```
+
+Test rapide :
+
+```bash
+scripts/run_react_demo.sh "Compare the temperature trends of Canada and Brazil."
+```
+
+Backend ReAct pour l'UI :
+
+```bash
+scripts/serve_react_backend.sh
+```
+
+## Observability Phoenix
+
+Phoenix est lance localement avec :
+
+```bash
+scripts/serve_phoenix.sh
+```
+
+La config `configs/react_climate_phoenix.yml` exporte les traces NAT vers :
+
+```text
+http://localhost:6006/v1/traces
+```
+
+Dans cet environnement NAT 1.7.0, il n'y a pas de composant tracing nomme
+`phoenix`. Le branchement correct est donc :
+
+```yaml
+_type: otelcollector
+endpoint: http://localhost:6006/v1/traces
+```
+
+Ordre de demo :
+
+```bash
+scripts/serve_phoenix.sh
+NAT_CONFIG_FILE=configs/react_climate_phoenix.yml scripts/serve_react_backend.sh
+scripts/serve_ui.sh
+```
+
 ## UI officielle NVIDIA
 
 L'UI officielle NVIDIA NeMo Agent Toolkit n'est pas versionnee dans ce repo.
@@ -110,6 +174,9 @@ serveur Next.js interne ; l'UI doit passer par le proxy public `3001`.
 
 ```bash
 python -m training_nvidia_nat
+nat validate --config_file config.yml
+nat validate --config_file configs/react_climate.yml
+nat validate --config_file configs/react_climate_phoenix.yml
 python -m pytest
 python -m ruff check .
 python -m black .

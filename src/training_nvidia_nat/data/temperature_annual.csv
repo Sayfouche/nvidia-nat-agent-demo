@@ -1,0 +1,81 @@
+country,year,temperature_c
+Brazil,1950,24.4
+Brazil,1955,24.6
+Brazil,1960,24.5
+Brazil,1965,24.8
+Brazil,1970,24.9
+Brazil,1975,25.0
+Brazil,1980,25.1
+Brazil,1985,25.3
+Brazil,1990,25.4
+Brazil,1995,25.6
+Brazil,2000,25.8
+Brazil,2005,26.0
+Brazil,2010,26.2
+Brazil,2015,26.5
+Brazil,2020,26.7
+Brazil,2025,26.9
+Canada,1950,-5.3
+Canada,1955,-5.1
+Canada,1960,-4.9
+Canada,1965,-4.6
+Canada,1970,-4.4
+Canada,1975,-4.2
+Canada,1980,-3.9
+Canada,1985,-3.6
+Canada,1990,-3.3
+Canada,1995,-3.0
+Canada,2000,-2.7
+Canada,2005,-2.3
+Canada,2010,-1.9
+Canada,2015,-1.5
+Canada,2020,-1.0
+Canada,2025,-0.7
+France,1950,10.4
+France,1955,10.5
+France,1960,10.7
+France,1965,10.8
+France,1970,11.0
+France,1975,11.1
+France,1980,11.4
+France,1985,11.6
+France,1990,11.9
+France,1995,12.1
+France,2000,12.4
+France,2005,12.7
+France,2010,13.0
+France,2015,13.3
+France,2020,13.7
+France,2025,14.0
+India,1950,23.7
+India,1955,23.9
+India,1960,24.0
+India,1965,24.2
+India,1970,24.4
+India,1975,24.6
+India,1980,24.8
+India,1985,25.1
+India,1990,25.3
+India,1995,25.6
+India,2000,25.9
+India,2005,26.1
+India,2010,26.5
+India,2015,26.8
+India,2020,27.1
+India,2025,27.4
+United States,1950,11.2
+United States,1955,11.4
+United States,1960,11.3
+United States,1965,11.5
+United States,1970,11.6
+United States,1975,11.7
+United States,1980,11.9
+United States,1985,12.1
+United States,1990,12.3
+United States,1995,12.5
+United States,2000,12.8
+United States,2005,13.0
+United States,2010,13.3
+United States,2015,13.6
+United States,2020,13.9
+United States,2025,14.2

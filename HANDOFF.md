@@ -21,19 +21,28 @@ thinking, and comparison with the existing `cv-critic-agent` CrewAI project.
 - **This repo**: integration layer, configuration, scripts, tests, docs, and
   deployment plan.
 
-Current workflow:
+Implemented workflows:
 
 - Config file: `config.yml`
 - Workflow type: `chat_completion`
+- Config file: `configs/react_climate.yml`
+- Workflow type: `react_agent`
+- Tools: `list_countries`, `calculate_statistics`, `filter_by_country`,
+  `find_extreme_years`, `create_visualization`
+- Config file: `configs/react_climate_phoenix.yml`
+- Observability: Phoenix via NAT `_type: otelcollector`
 - Model: `meta/llama-3.1-70b-instruct`
 - Backend server: `nat serve --config_file config.yml --host 127.0.0.1 --port 8001`
 - UI proxy: `http://localhost:3001`
+- Phoenix UI: `http://localhost:6006`
 
 ## Current Local State
 
 Validated locally:
 
 - `nat validate --config_file config.yml`
+- `nat validate --config_file configs/react_climate.yml`
+- `nat validate --config_file configs/react_climate_phoenix.yml`
 - `python -m pytest`
 - `python -m ruff check .`
 - `GET http://127.0.0.1:8001/health`
@@ -66,6 +75,12 @@ e5d91c68b913287cbcc4d4689a956a7b3b36333e
 - On this machine, port `3000` was already busy, so UI uses `3001`.
 - The UI public proxy accepts `/api/chat`; direct `/api/v1/chat/completions` is
   blocked by the UI allowlist.
+- NAT 1.7.0 in this venv does not register a tracing component named `phoenix`.
+  Use `configs/react_climate_phoenix.yml`, which exports to Phoenix through
+  `_type: otelcollector` and endpoint `http://localhost:6006/v1/traces`.
+- `arize-phoenix==17.2.0` provides the local `phoenix serve` command.
+- `scripts/serve_phoenix.sh` sets `PHOENIX_ALLOWED_SANDBOX_PROVIDERS=NONE` by
+  default to avoid slow WASM sandbox prefetch during local demo startup.
 - The workshop cleanup calls `ui_manager.stop()`, `nat_process.terminate()`,
   and `nat_process.wait()`. Local equivalent is currently manual `Ctrl+C` in
   backend/UI terminals. Add `scripts/start_demo.sh` and `scripts/stop_demo.sh`
@@ -140,6 +155,33 @@ PORT=3000
 NEXT_INTERNAL_URL=http://127.0.0.1:3099
 ```
 
+## Demo Run Order
+
+Terminal 1:
+
+```bash
+scripts/serve_phoenix.sh
+```
+
+Terminal 2:
+
+```bash
+NAT_CONFIG_FILE=configs/react_climate_phoenix.yml scripts/serve_react_backend.sh
+```
+
+Terminal 3:
+
+```bash
+scripts/serve_ui.sh
+```
+
+Ask in the UI:
+
+```text
+Compare the temperature trends of Canada and Brazil. Which one is warming faster?
+Also create a visualization of global trends.
+```
+
 ## Next Work
 
 1. Add architecture diagram and screenshots/video.
@@ -152,3 +194,5 @@ Completed after initial handoff:
 - GitHub Actions CI added in `.github/workflows/ci.yml`.
 - Portfolio-facing technical sheet added in `TECHNICAL_SHEET.md`.
 - NAT ReAct tools lesson consolidated in `docs/nat-react-tools-lesson.md`.
+- NAT ReAct climate tools implemented and validated.
+- Phoenix observability config implemented through OTLP collector export.

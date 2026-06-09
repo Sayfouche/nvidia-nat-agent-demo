@@ -20,9 +20,12 @@ deployment path.
 | --- | --- | --- |
 | Model endpoint | NVIDIA NIM | Hosted LLM provider through NVIDIA API |
 | Orchestration | NeMo Agent Toolkit / NAT | Defines and serves the agent workflow |
-| Workflow config | `config.yml` | Declares the climate assistant and NIM model |
+| Baseline workflow | `config.yml` | Simple climate chat completion |
+| Agent workflow | `configs/react_climate.yml` | ReAct agent with local climate tools |
+| Observability workflow | `configs/react_climate_phoenix.yml` | ReAct agent exporting traces to Phoenix through OTLP |
 | Backend API | `nat serve` | Exposes health, chat, generate, and OpenAI-compatible routes |
 | UI client | NVIDIA NeMo Agent Toolkit UI | Official chat UI connected to the NAT backend |
+| Observability | Phoenix | Local trace UI at `http://localhost:6006` |
 
 Current local ports:
 
@@ -34,22 +37,29 @@ UI gateway:  http://localhost:3001
 The UI is intentionally not vendored in this repo. It is fetched from NVIDIA's
 official repository with `scripts/bootstrap_ui.sh`.
 
-## Workflow
+## Workflows
 
-The current workflow is a climate science assistant:
+Baseline workflow:
 
 - NAT workflow type: `chat_completion`
 - LLM type: `nim`
 - Model: `meta/llama-3.1-70b-instruct`
 - Backend URL: `https://integrate.api.nvidia.com/v1`
 
-Planned next workflow:
+ReAct workflow:
 
 - NAT workflow type: `react_agent`
 - Tools: climate statistics, country filtering, extreme-year lookup, and
   visualization
-- Config file target: `configs/react_climate.yml`
+- Config file: `configs/react_climate.yml`
 - Lesson notes: `docs/nat-react-tools-lesson.md`
+
+Phoenix workflow:
+
+- Config file: `configs/react_climate_phoenix.yml`
+- Tracing exporter: `_type: otelcollector`
+- Phoenix endpoint: `http://localhost:6006/v1/traces`
+- Lesson notes: `docs/nat-phoenix-observability-lesson.md`
 
 Required local environment:
 
@@ -86,6 +96,19 @@ Run the backend:
 scripts/serve_backend.sh
 ```
 
+Run the ReAct backend:
+
+```bash
+scripts/serve_react_backend.sh
+```
+
+Run Phoenix + ReAct tracing:
+
+```bash
+scripts/serve_phoenix.sh
+NAT_CONFIG_FILE=configs/react_climate_phoenix.yml scripts/serve_react_backend.sh
+```
+
 Install the official NVIDIA UI:
 
 ```bash
@@ -116,6 +139,8 @@ http://localhost:3001
   registrations.
 - ReAct tools should be implemented as pure tested functions plus thin NAT
   wrappers.
+- In this environment, NAT does not expose `_type: phoenix`; Phoenix is used as
+  an OTLP backend through `_type: otelcollector`.
 
 ## Quality Gates
 
@@ -123,6 +148,8 @@ Local validation:
 
 ```bash
 nat validate --config_file config.yml
+nat validate --config_file configs/react_climate.yml
+nat validate --config_file configs/react_climate_phoenix.yml
 python -m pytest
 python -m ruff check .
 bash -n scripts/*.sh

@@ -11,6 +11,12 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+training_nvidia_nat = ["data/*.csv"]
+
+[project.entry-points."nat.components"]
+training_nvidia_nat = "training_nvidia_nat.register"
+
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]

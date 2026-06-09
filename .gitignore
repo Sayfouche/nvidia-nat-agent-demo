@@ -11,6 +11,7 @@ __pycache__/
 .next/
 node_modules/
 *.tsbuildinfo
+artifacts/
 
 # Official NVIDIA UI is bootstrapped locally, not vendored in this repo.
 external/

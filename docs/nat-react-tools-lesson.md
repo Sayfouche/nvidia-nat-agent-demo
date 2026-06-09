@@ -65,7 +65,12 @@ class CalculateStatisticsConfig(
     """Configuration for calculating climate statistics."""
 ```
 
-The `name` becomes the `_type` used in workflow YAML.
+The `name` combines with the Python package namespace to become the `_type` used
+in workflow YAML. In this repo, `name="calculate_statistics"` becomes:
+
+```yaml
+_type: training_nvidia_nat/calculate_statistics
+```
 
 ### Wrapper Function
 
@@ -84,9 +89,8 @@ async def calculate_statistics_tool(
 ):
     df = load_climate_data(DATA_PATH)
 
-    async def _wrapper(country: str | None = "") -> str:
-        country_param = None if country in ("", None, "None") else country
-        return calculate_statistics(df, country_param)
+    async def _wrapper(inputs: CalculateStatsInput) -> str:
+        return calculate_statistics(df, inputs.country)
 
     yield FunctionInfo.from_fn(
         _wrapper,
@@ -111,7 +115,7 @@ the ReAct workflow:
 ```yaml
 functions:
   calculate_statistics:
-    _type: training_nvidia_nat/climate_calculate_statistics
+    _type: training_nvidia_nat/calculate_statistics
     description: "Calculate temperature statistics globally or for a specific country"
 
 workflow:
@@ -120,20 +124,26 @@ workflow:
   tool_names:
     - calculate_statistics
   verbose: true
-  max_iterations: 5
+  max_tool_calls: 8
   parse_agent_response_max_retries: 2
+  additional_instructions: |
+    You are a climate analysis assistant.
 ```
 
 `tool_names` must match keys under `functions`, not `_type` values.
 
+Do not replace `system_prompt` unless you also include NAT's required ReAct
+placeholders `{tools}` and `{tool_names}`. This repo uses
+`additional_instructions` to keep the default ReAct format intact.
+
 ## Python Packaging
 
-NAT discovers custom tools through Python package entry points. The future
-implementation should add an entry point to `pyproject.toml`:
+NAT discovers custom tools through Python package entry points. In NAT 1.7.0,
+this repo uses the `nat.components` entry point group:
 
 ```toml
-[project.entry-points.nat]
-"training_nvidia_nat/climate_statistics" = "training_nvidia_nat.register"
+[project.entry-points."nat.components"]
+training_nvidia_nat = "training_nvidia_nat.register"
 ```
 
 Then reinstall in editable mode:
@@ -142,12 +152,11 @@ Then reinstall in editable mode:
 python -m pip install -e .
 ```
 
-The exact entry point target should be verified during implementation. The
-workshop suggests a dedicated `register.py` module.
+The target module imports or defines the `@register_function` declarations.
 
 ## Multi-Tool Agent Target
 
-The mature workflow should expose several climate tools:
+The implemented workflow exposes five climate tools:
 
 ```text
 list_countries
@@ -156,14 +165,6 @@ filter_by_country
 find_extreme_years
 create_visualization
 ```
-
-Recommended implementation order:
-
-1. `calculate_statistics`
-2. `list_countries`
-3. `filter_by_country`
-4. `find_extreme_years`
-5. `create_visualization`
 
 Each tool should have:
 
@@ -179,12 +180,12 @@ Each tool should have:
 
 ```json
 {
-  "mean_temperature": 17.91,
-  "min_temperature": -15.71,
-  "max_temperature": 29.23,
-  "std_deviation": 7.83,
+  "mean_temperature_c": 17.91,
+  "min_temperature_c": -15.71,
+  "max_temperature_c": 29.23,
+  "std_deviation_c": 7.83,
   "num_records": 1210,
-  "trend_per_decade": 0.241,
+  "trend_per_decade_c": 0.241,
   "years_analyzed": "1950-2025"
 }
 ```
@@ -193,31 +194,11 @@ If a country filter is applied, include `country`.
 
 ## Visualization Tool
 
-The visualization tool creates file artifacts:
+The visualization tool creates SVG file artifacts. This repo uses the Python
+standard library instead of `matplotlib`, because `matplotlib` is not installed
+in the original workshop venv.
 
-```python
-create_visualization(
-    df,
-    plot_type="annual_trend",
-    save_path="global_trend.png",
-)
-```
-
-Observed output:
-
-```text
-Created annual_trend plot and saved to global_trend.png
-```
-
-Supported plot types seen in the workshop:
-
-```text
-annual_trend
-country_comparison
-monthly_pattern
-```
-
-The implementation must constrain `save_path` to avoid arbitrary file writes.
+Implemented plot type: `annual_trend`.
 
 ## Showcase Scenario
 
@@ -268,4 +249,3 @@ baseline chat -> ReAct tools -> observability/tracing -> evaluation
 
 The current docs should guide implementation of the ReAct tools before adding
 Phoenix tracing.
-

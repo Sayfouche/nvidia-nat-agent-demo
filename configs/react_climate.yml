@@ -1,0 +1,47 @@
+llms:
+  climate_llm:
+    _type: nim
+    model_name: meta/llama-3.1-70b-instruct
+    base_url: $NVIDIA_BASE_URL
+    api_key: $NVIDIA_API_KEY
+    temperature: 0.2
+    max_tokens: 2048
+
+functions:
+  list_countries:
+    _type: training_nvidia_nat/list_countries
+    description: List available countries in the climate dataset.
+
+  calculate_statistics:
+    _type: training_nvidia_nat/calculate_statistics
+    description: Calculate global or country-level temperature statistics.
+
+  filter_by_country:
+    _type: training_nvidia_nat/filter_by_country
+    description: Return climate trend details for a specific country.
+
+  find_extreme_years:
+    _type: training_nvidia_nat/find_extreme_years
+    description: Find the warmest or coldest years globally or by country.
+
+  create_visualization:
+    _type: training_nvidia_nat/create_visualization
+    description: Create an SVG annual temperature trend visualization.
+
+workflow:
+  _type: react_agent
+  llm_name: climate_llm
+  tool_names:
+    - list_countries
+    - calculate_statistics
+    - filter_by_country
+    - find_extreme_years
+    - create_visualization
+  verbose: true
+  max_tool_calls: 8
+  parse_agent_response_max_retries: 2
+  additional_instructions: |
+    You are a climate analysis assistant. Use the available tools when users ask
+    about country-level climate data, global trends, extreme years, or charts.
+    Explain numeric results clearly and mention that this demo uses a small
+    sample dataset, not a full scientific climate archive.

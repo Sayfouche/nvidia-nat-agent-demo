@@ -854,3 +854,125 @@ Decision probable pour notre repo :
   - reference YAML
 - ajouter des tests pour les inputs ambigus generes par le LLM (`None`, vide,
   pays inexistant)
+
+## Lesson - Phoenix observability
+
+La lecon suivante ajoute Phoenix comme backend d'observability pour tracer les
+workflows NAT.
+
+Objectif conceptuel :
+
+```text
+NAT workflow -> tracer -> telemetry -> Phoenix exporter
+```
+
+Ce que Phoenix permet d'observer :
+
+- appels LLM
+- appels tools
+- acces memoire
+- retrievers
+- fonctions imbriquees
+- erreurs
+- latence
+- etapes intermediaires d'un agent ReAct
+
+Pattern YAML observe :
+
+```yaml
+general:
+  telemetry:
+    tracing:
+      phoenix:
+        _type: phoenix
+        endpoint: http://localhost:6006/v1/traces
+        project: climate_analyzer_baseline
+```
+
+Interpretation :
+
+- `general.telemetry.tracing` configure le tracing global NAT.
+- `_type: phoenix` selectionne l'exporter Phoenix.
+- `endpoint` pointe vers l'ingestion traces Phoenix.
+- `project` groupe les traces dans Phoenix.
+
+Impact pour notre repo :
+
+- creer/maintenir une note dediee :
+  `docs/nat-phoenix-observability-lesson.md`
+- ajouter plus tard une config observee :
+  `configs/react_climate_phoenix.yml`
+- utiliser des noms de projet Phoenix distincts pour comparer :
+  - baseline
+  - react tools
+  - optimized
+
+Setup observe dans le workshop :
+
+```bash
+cd climate_analyzer
+uv pip install -e .
+cd ..
+phoenix serve
+```
+
+Equivalent local probable :
+
+```bash
+python -m pip install -e .
+phoenix serve
+```
+
+URLs locales :
+
+```text
+Phoenix UI: http://localhost:6006
+Trace endpoint: http://localhost:6006/v1/traces
+```
+
+Note :
+
+- le JS du lab qui remplace `p3000` par `p6006` sert uniquement dans
+  l'environnement notebook heberge.
+- en local, ouvrir directement `http://localhost:6006`.
+
+Decision d'implementation dans ce repo :
+
+- `nat info components --types tracing --query phoenix --num_results 20`
+  retourne aucun composant `phoenix` dans le venv actuel.
+- NAT 1.7.0 expose en revanche l'exporter OpenTelemetry `otelcollector`.
+- Phoenix accepte les traces OTLP HTTP sur `http://localhost:6006/v1/traces`.
+- La config implementee est donc :
+
+```yaml
+general:
+  telemetry:
+    tracing:
+      phoenix_local:
+        _type: otelcollector
+        endpoint: http://localhost:6006/v1/traces
+        project: training_nvidia_nat_react_climate
+```
+
+Commandes implementees :
+
+```bash
+scripts/serve_phoenix.sh
+NAT_CONFIG_FILE=configs/react_climate_phoenix.yml scripts/serve_react_backend.sh
+scripts/serve_ui.sh
+```
+
+Validation actuelle :
+
+```bash
+scripts/validate_local.sh
+```
+
+Cette validation couvre maintenant :
+
+- `config.yml`
+- `configs/react_climate.yml`
+- `configs/react_climate_phoenix.yml`
+- tests unitaires
+- Ruff
+- syntaxe shell
