@@ -184,10 +184,100 @@ Also create a visualization of global trends.
 
 ## Next Work
 
-1. Add architecture diagram and screenshots/video.
-2. Add `scripts/start_demo.sh` and `scripts/stop_demo.sh` for reliable cleanup.
-3. Add deployment docs for Render/Railway/Fly.
-4. Connect the final demo page from `cv-portfolio`.
+1. Continue the NVIDIA NAT course with the multi-agent lesson:
+   "Multi-agent integration: adding math".
+2. Add a real LangGraph calculator agent and expose it as a NAT tool.
+3. Add Docker Compose as a demo packaging layer after the local workflow is
+   stable.
+4. Add architecture diagram and screenshots/video.
+5. Add `scripts/start_demo.sh` and `scripts/stop_demo.sh` for reliable cleanup.
+6. Add deployment docs for Render/Railway/Fly.
+7. Connect the final demo page from `cv-portfolio`.
+
+## Planned Feature - LangGraph Calculator Agent
+
+The next strong demo feature is to integrate a LangGraph calculator agent as a
+tool inside the NAT climate ReAct workflow.
+
+Target architecture:
+
+```text
+Climate ReAct agent
+  -> climate data tools
+  -> calculator_agent
+       -> LangGraph calculator sub-agent
+  -> final answer
+```
+
+Why this matters:
+
+- Shows multi-agent integration, not only simple Python tools.
+- Demonstrates that NAT can orchestrate an agent implemented in another
+  framework.
+- Makes Phoenix traces more interesting: top-level ReAct agent, climate tool
+  calls, nested calculator agent calls, and final synthesis.
+
+Implementation direction:
+
+```text
+src/training_nvidia_nat/calculator_agent.py
+src/training_nvidia_nat/register.py
+configs/react_climate_math.yml
+configs/react_climate_phoenix_math.yml
+tests/test_calculator_agent.py
+docs/nat-multi-agent-langgraph-lesson.md
+```
+
+Important design choice:
+
+- Do not copy course helper code.
+- Build a small local LangGraph calculator agent.
+- Wrap it with `@register_function(..., framework_wrappers=[LLMFrameworkEnum.LANGCHAIN])`.
+- Get its LLM from NAT YAML via `builder.get_llm(...)`; do not hardcode the
+  model in the LangGraph module.
+
+Good demo prompt:
+
+```text
+For India, use the observed temperature trend per decade to project the average
+temperature in 2050. Explain the calculation.
+```
+
+Expected flow:
+
+1. Climate ReAct calls `calculate_statistics(country="India")`.
+2. Climate ReAct sends the trend/year math to `calculator_agent`.
+3. LangGraph calculator returns the projection.
+4. Climate ReAct writes the final answer.
+5. Phoenix shows the nested execution.
+
+## Planned Feature - Docker Compose Demo
+
+Docker is useful as a demo packaging layer, not as the primary learning/dev
+loop.
+
+Target services:
+
+```text
+docker compose
+  nat-backend   -> nat serve with configs/react_climate_phoenix.yml
+  phoenix       -> Phoenix UI and OTLP endpoint
+  nat-ui        -> official NVIDIA NAT UI connected to backend
+```
+
+Positioning:
+
+```text
+Local venv = learning/debug/fast iteration
+Docker Compose = reproducible GitHub/portfolio demo
+```
+
+Critical constraints:
+
+- Still requires `NVIDIA_API_KEY`.
+- Do not vendor-copy the NVIDIA UI into this repo.
+- Use volumes for Phoenix state.
+- Keep `.env` local and untracked.
 
 Completed after initial handoff:
 

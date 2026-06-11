@@ -976,3 +976,129 @@ Cette validation couvre maintenant :
 - tests unitaires
 - Ruff
 - syntaxe shell
+
+## Next learning state - multi-agent LangGraph math
+
+Lien formation :
+
+```text
+https://learn.deeplearning.ai/courses/nvidia-nat-making-agents-reliable/lesson/cni196/multi-agent-integration-adding-math
+```
+
+Ce que la lecon montre :
+
+- integrer un agent LangGraph calculator comme tool NAT
+- le rendre disponible au climate ReAct agent
+- utiliser `framework_wrappers=[LLMFrameworkEnum.LANGCHAIN]`
+- recuperer le LLM du calculator via le `builder` NAT et la config YAML
+- eviter de hardcoder le model dans le code LangGraph
+
+Representation physique dans notre repo :
+
+```text
+src/training_nvidia_nat/calculator_agent.py
+  -> construit/compile un petit graph LangGraph
+
+src/training_nvidia_nat/register.py
+  -> wrappe ce graph comme function/tool NAT
+
+configs/react_climate_math.yml
+  -> declare calculator_llm + calculator_agent
+
+configs/react_climate_phoenix_math.yml
+  -> meme chose avec tracing Phoenix
+```
+
+Pattern attendu :
+
+```python
+@register_function(
+    config_type=CalculatorAgentConfig,
+    framework_wrappers=[LLMFrameworkEnum.LANGCHAIN],
+)
+async def calculator_agent_tool(config: CalculatorAgentConfig, builder: Builder):
+    llm = await builder.get_llm(
+        config.llm_name,
+        wrapper_type=LLMFrameworkEnum.LANGCHAIN,
+    )
+    agent = build_calculator_agent(llm)
+
+    async def _wrapper(inputs: CalculatorInput) -> str:
+        result = await agent.ainvoke(...)
+        return ...
+
+    yield FunctionInfo.from_fn(...)
+```
+
+Demo cible :
+
+```text
+For India, use the observed temperature trend per decade to project the average
+temperature in 2050. Explain the calculation.
+```
+
+Flux attendu :
+
+```text
+climate ReAct agent
+  -> calculate_statistics(country="India")
+  -> calculator_agent
+       -> LangGraph calculator sub-agent
+  -> final answer
+```
+
+Ce que ca montre :
+
+- NAT orchestre un agent principal + un sous-agent LangGraph.
+- Les tools simples restent dans `climate.py`.
+- Les calculs avances sont delegues au sub-agent.
+- Phoenix doit montrer les appels imbriques.
+
+Decision :
+
+- ne pas copier le helper de la formation
+- creer notre propre mini agent LangGraph calculator
+- le garder minimal mais reel
+- ajouter tests unitaires sur les fonctions math pures si possible
+
+## Future packaging state - Docker Compose
+
+Docker peut aider pour assembler la demo, mais ne remplace pas le venv local
+pour l'apprentissage.
+
+Architecture cible :
+
+```text
+docker compose
+  nat-backend
+    -> nat serve --config_file configs/react_climate_phoenix.yml
+
+  phoenix
+    -> Phoenix UI http://localhost:6006
+    -> OTLP HTTP http://localhost:6006/v1/traces
+
+  nat-ui
+    -> official NVIDIA NAT UI
+    -> talks to nat-backend
+```
+
+Interet :
+
+- une commande unique pour la demo GitHub/portfolio
+- ports fixes
+- separation claire NAT / Phoenix / UI
+- presentation plus professionnelle
+
+Contraintes :
+
+- `NVIDIA_API_KEY` reste obligatoire
+- `.env` ne doit jamais etre committe
+- ne pas copier/vendor l'UI NVIDIA dans ce repo
+- utiliser volume Docker pour Phoenix
+
+Positionnement :
+
+```text
+venv local = dev/formation/debug
+docker compose = packaging demo reproductible
+```
